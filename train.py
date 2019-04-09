@@ -40,6 +40,7 @@ if __name__ == '__main__':
                             num_workers=8, pin_memory=True)
 
     model = Convnet().cuda()
+    proto_kl = Proto_KL()
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
@@ -61,6 +62,7 @@ if __name__ == '__main__':
         lr_scheduler.step()
 
         model.train()
+        proto_kl.train()
 
         tl = Averager()
         ta = Averager()
@@ -76,7 +78,10 @@ if __name__ == '__main__':
             label = torch.arange(args.train_way).repeat(args.query)
             label = label.type(torch.cuda.LongTensor)
 
-            logits = euclidean_metric(model(data_query), proto)
+            # logits: [75,5]
+            logits = proto_kl.disc(model(data_query), proto)
+
+            # logits = euclidean_metric(model(data_query), proto)
             loss = F.cross_entropy(logits, label)
             acc = count_acc(logits, label)
             print('epoch {}, train {}/{}, loss={:.4f} acc={:.4f}'
@@ -95,6 +100,7 @@ if __name__ == '__main__':
         ta = ta.item()
 
         model.eval()
+        proto_kl.eval()
 
         vl = Averager()
         va = Averager()
@@ -110,7 +116,9 @@ if __name__ == '__main__':
             label = torch.arange(args.test_way).repeat(args.query)
             label = label.type(torch.cuda.LongTensor)
 
-            logits = euclidean_metric(model(data_query), proto)
+            # logits: [75,5]
+            logits = proto_kl.disc(model(data_query), proto)
+            # logits = euclidean_metric(model(data_query), proto)
             loss = F.cross_entropy(logits, label)
             acc = count_acc(logits, label)
 
